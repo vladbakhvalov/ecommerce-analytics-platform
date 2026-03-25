@@ -1,6 +1,7 @@
--- For raw layers of data 
-CREATE SCHEMA IF NOT EXISTS raw; -- Raw data fro data loader
-CREATE SCHEMA IF NIT EXISTS staging; -- for DBT staging
-CREATE SCHEMA IF NOT EXISTS intermediate; -- for DBT intermediate transformations
-CREATE SCHEMA IF NOT EXISTS marts; -- DBT marts (facts + dimensions)
+-- Schemas for data platform layers
+CREATE SCHEMA IF NOT EXISTS raw;
+CREATE SCHEMA IF NOT EXISTS staging;
+CREATE SCHEMA IF NOT EXISTS intermediate;
+CREATE SCHEMA IF NOT EXISTS marts;
+CREATE SCHEMA IF NOT EXISTS reports;
 

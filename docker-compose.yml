@@ -1,0 +1,111 @@
+services:
+  # ─────────────────────────── PostgreSQL ───────────────────────────
+  postgres:
+    image: postgres:18-alpine
+    container_name: shopflow-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────── pgAdmin ─────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: shopflow-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - ./pgadmin/init.sh:/pgadmin4/init.sh:ro
+    configs:
+      - source: pgadmin_servers
+        target: /pgadmin4/servers.json
+    entrypoint: ["/bin/sh", "/pgadmin4/init.sh"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ─────────────────────────── Data Loader ─────────────────────────
+  data-loader:
+    build:
+      context: ./data-loader
+      dockerfile: Dockerfile
+    container_name: shopflow-data-loader
+    environment:
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      NUM_USERS: ${DATA_LOADER_NUM_USERS}
+      NUM_PRODUCTS: ${DATA_LOADER_NUM_PRODUCTS}
+      NUM_CAMPAIGNS: ${DATA_LOADER_NUM_CAMPAIGNS}
+      DAYS_HISTORY: ${DATA_LOADER_DAYS_HISTORY}
+      EVENTS_PER_DAY: ${DATA_LOADER_EVENTS_PER_DAY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./data-loader/src:/app/src:ro
+    command: ["python", "-m", "src.main"]
+
+  # ─────────────────────────── dbt ─────────────────────────────────
+  dbt:
+    build:
+      context: ./dbt
+      dockerfile: Dockerfile
+    container_name: shopflow-dbt
+    environment:
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./dbt:/usr/app/dbt
+    working_dir: /usr/app/dbt
+    entrypoint: ["tail", "-f", "/dev/null"]  # Keep alive for manual dbt run
+
+volumes:
+  postgres_data:
+
+configs:
+  pgadmin_servers:
+    content: |
+      {
+        "Servers": {
+          "1": {
+            "Name": "${PGADMIN_SERVER_NAME}",
+            "Group": "${PGADMIN_SERVER_GROUP}",
+            "Host": "${POSTGRES_HOST}",
+            "Port": ${POSTGRES_PORT},
+            "MaintenanceDB": "${POSTGRES_DB}",
+            "Username": "${POSTGRES_USER}",
+            "SSLMode": "prefer"
+          }
+        }
+      }
+
+networks:
+  default:
+    name: shopflow-network

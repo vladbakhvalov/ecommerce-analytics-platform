@@ -1,0 +1,67 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    tables:
+      - name: users
+      - name: products
+      - name: orders
+      - name: order_items
+      - name: events
+      - name: campaigns
+      - name: campaign_daily_stats
+      - name: dim_date
+
+models:
+  - name: stg_users
+    description: "Staging: поusers ShopFlow"
+    columns:
+      - name: user_id
+        tests:
+          - unique
+          - not_null
+      - name: country
+        tests:
+          - not_null
+
+  - name: stg_orders
+    description: "Staging: orders (without cancelled)"
+    columns:
+      - name: order_id
+        tests:
+          - unique
+          - not_null
+      - name: user_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_users')
+              field: user_id
+
+  - name: stg_order_items
+    description: "Staging: order items with calculated line_revenue"
+    columns:
+      - name: order_item_id
+        tests:
+          - unique
+          - not_null
+      - name: line_revenue
+        tests:
+          - not_null
+
+  - name: stg_events
+    description: "Staging: user events"
+    columns:
+      - name: event_id
+        tests:
+          - unique
+          - not_null
+
+  - name: stg_campaigns
+    description: "Staging: advertising campaigns"
+    columns:
+      - name: campaign_id
+        tests:
+          - unique
+          - not_null

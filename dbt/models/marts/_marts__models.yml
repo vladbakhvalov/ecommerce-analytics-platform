@@ -1,0 +1,69 @@
+version: 2
+
+models:
+  - name: dim_users
+    description: "Dimension: Users with segmentation and CLV"
+    columns:
+      - name: user_id
+        tests: [unique, not_null]
+      - name: segment
+        tests:
+          - accepted_values:
+              values: ['new', 'active', 'returning', 'dormant', 'vip']
+      - name: clv_tier
+        tests:
+          - accepted_values:
+              values: ['bronze', 'silver', 'gold', 'platinum']
+
+  - name: dim_products
+    description: "Dimension: Products with margin and stock status"
+    columns:
+      - name: product_id
+        tests: [unique, not_null]
+      - name: margin_pct
+        tests:
+          - not_null
+
+  - name: dim_campaigns
+    description: "Dimension: Advertising campaigns"
+    columns:
+      - name: campaign_id
+        tests: [unique, not_null]
+
+  - name: dim_date
+    description: "Dimension: Calendar with German holidays"
+    columns:
+      - name: date_key
+        tests: [unique, not_null]
+      - name: full_date
+        tests: [unique, not_null]
+
+  - name: fct_orders
+    description: "Fact: Orders (one row = one line item)"
+    columns:
+      - name: order_item_id
+        tests: [unique, not_null]
+      - name: line_revenue
+        tests:
+          - not_null
+      - name: order_date_key
+        tests:
+          - relationships:
+              to: ref('dim_date')
+              field: date_key
+
+  - name: fct_events
+    description: "Fact: User events"
+    columns:
+      - name: event_id
+        tests: [unique, not_null]
+
+  - name: fct_campaign_daily
+    description: "Fact: Daily campaign statistics"
+    columns:
+      - name: campaign_id
+        tests:
+          - relationships:
+              to: ref('dim_campaigns')
+              field: campaign_id
+              
