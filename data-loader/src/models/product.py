@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from pydantic import BaseModel, Field
 from uuid import UUID, uuid4
@@ -26,7 +26,7 @@ class Product(BaseModel):
     reviews_count: int = Field(ge=0)
     stock_quantity: int = Field(ge=0)
     is_active: bool = True
-    created_at: datetime = Field(default_factory=lambda: datetime.now(datetime.timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     @property
     def margin(self) -> float:

@@ -23,6 +23,16 @@ from src.loaders.pg_loader import PostgresLoader
 logger = structlog.get_logger()
 
 
+def model_rows(records: list, columns: list[str]) -> list[tuple]:
+    """Convert Pydantic models to tuples aligned with target DB columns."""
+
+    rows: list[tuple] = []
+    for record in records:
+        data = record.model_dump(mode="json")
+        rows.append(tuple(data.get(column) for column in columns))
+    return rows
+
+
 def main():
     logger.info(
         "starting_data_generation",
@@ -64,21 +74,57 @@ def main():
         
         # 3. Load data into PostgreSQL
         logger.info("loading_data_to_postgres")
+
+        for table_name in (
+            "campaign_daily_stats",
+            "events",
+            "order_items",
+            "orders",
+            "campaigns",
+            "products",
+            "users",
+        ):
+            loader.truncate(table_name)
         
-        loader.bulk_insert("users", User.model_fields.keys(), 
-                          [u.model_dump_tuple() for u in users])
-        loader.bulk_insert("products", Product.model_fields.keys(),
-                          [p.model_dump_tuple() for p in products])
-        loader.bulk_insert("campaigns", Campaign.model_fields.keys(),
-                          [c.model_dump_tuple() for c in campaigns])
-        loader.bulk_insert("orders", Order.model_fields.keys(),
-                          [o.model_dump_tuple() for o in orders])
-        loader.bulk_insert("order_items", OrderItem.model_fields.keys(),
-                          [i.model_dump_tuple() for i in order_items])
-        loader.bulk_insert("events", Event.model_fields.keys(),
-                          [e.model_dump_tuple() for e in events])
-        loader.bulk_insert("campaign_daily_stats", CampaignDailyStats.model_fields.keys(),
-                          [s.model_dump_tuple() for s in campaign_stats])
+        user_columns = [
+            "user_id", "email", "first_name", "last_name", "country", "city",
+            "registration_date", "birth_date", "gender", "device_type", "segment",
+            "clv_tier", "total_orders", "total_revenue", "is_active", "created_at",
+        ]
+        product_columns = [
+            "product_id", "name", "category", "subcategory", "brand", "price", "cost",
+            "price_segment", "rating", "reviews_count", "stock_quantity", "is_active", "created_at",
+        ]
+        campaign_columns = [
+            "campaign_id", "name", "channel", "campaign_type", "start_date",
+            "end_date", "daily_budget", "is_active",
+        ]
+        order_columns = [
+            "order_id", "user_id", "order_date", "status", "payment_method",
+            "shipping_country", "campaign_id",
+        ]
+        order_item_columns = [
+            "order_item_id", "order_id", "product_id", "quantity", "unit_price", "discount_pct",
+        ]
+        event_columns = [
+            "event_id", "user_id", "event_type", "event_timestamp", "product_id",
+            "page_url", "device_type", "session_id", "country",
+        ]
+        campaign_stats_columns = [
+            "campaign_id", "stat_date", "impressions", "clicks", "cost", "conversions", "revenue",
+        ]
+
+        loader.bulk_insert("users", user_columns, model_rows(users, user_columns))
+        loader.bulk_insert("products", product_columns, model_rows(products, product_columns))
+        loader.bulk_insert("campaigns", campaign_columns, model_rows(campaigns, campaign_columns))
+        loader.bulk_insert("orders", order_columns, model_rows(orders, order_columns))
+        loader.bulk_insert("order_items", order_item_columns, model_rows(order_items, order_item_columns))
+        loader.bulk_insert("events", event_columns, model_rows(events, event_columns))
+        loader.bulk_insert(
+            "campaign_daily_stats",
+            campaign_stats_columns,
+            model_rows(campaign_stats, campaign_stats_columns),
+        )
         
         elapsed = time.time() - start
         logger.info("data_generation_complete", elapsed_seconds=round(elapsed, 1))

@@ -1,6 +1,7 @@
 faker==33.0.0
 pydantic==2.10.0
 pydantic-settings==2.7.0
+email-validator==2.2.0
 psycopg2==2.9.10
 pandas==2.2.3
 numpy==2.2.0
